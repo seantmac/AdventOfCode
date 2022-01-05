@@ -1,0 +1,114 @@
+Public Sub DocDatabase_Table(Optional bolLocalTablesOnly As Boolean = False)
+ '====================================================================
+ ' Name:    DocDatabase_Table
+ ' Purpose: Exports the tables in this database to a series of
+ '          text files.  The size of each text file will give you
+ '          an idea of what tables use the most disk space.
+ '
+ ' Author:  Ben Sacherich
+ ' Date:    5/2/2011
+ '====================================================================
+    On Error GoTo ErrorHandler
+?DocDatabase_Table(Optional bolLocalTablesOnly As Boolean = False)
+    Dim dbs As Database ' or Variant if this fails.
+    Dim td As TableDef
+    Dim strSaveDir As String
+    Dim lngObjectCount As Long
+    Dim lngCount As Long
+    Dim strMsg As String
+    Dim varReturn As Variant
+
+    Set dbs = CurrentDb() ' use CurrentDb() to refresh Collections
+
+    ' Export to a subfolder of the current database folder.
+    strSaveDir = CurrentProject.path & "\temp_table_size\"
+
+    If Len(strSaveDir) > 0 Then
+
+        strMsg = "This feature exports all of the tables in this database to a series of " _
+            & "comma delimited text files.  The size of each text file will give you " _
+            & "an idea of what tables use the most disk space." & vbCrLf & vbCrLf
+
+        ' Get a count of the tables, minus the system tables.
+        If bolLocalTablesOnly = True Then
+            lngObjectCount = DCount("Name", "MSysObjects", "Type=1 AND Name not like 'MSys*' AND Name not like '~*'")
+            strMsg = strMsg & "There are " & lngObjectCount & " local tables in this database. " _
+                & vbCrLf & vbCrLf
+        Else
+            ' Include Local, Linked, and ODBC tables
+            lngObjectCount = DCount("Name", "MSysObjects", "Type in (1,4,6) AND Name not like 'MSys*' AND Name not like '~*'")
+            strMsg = strMsg & "There are " & lngObjectCount & " tables in this database " _
+                & "(including local, linked, and ODBC)." & vbCrLf & vbCrLf
+        End If
+        strMsg = strMsg & "The tables will be exported to a subfolder of the current database:  " _
+            & strSaveDir & vbCrLf & vbCrLf
+        strMsg = strMsg & "Do you want to continue?"
+
+        If MsgBox(strMsg, vbYesNo + vbInformation, "Export Tables") = vbYes Then
+
+            If Dir(strSaveDir, vbDirectory) = "" Then
+                MkDir strSaveDir
+            End If
+
+            ' Initialize and display message in status bar.
+            varReturn = SysCmd(acSysCmdInitMeter, "(" & Format((lngCount) / lngObjectCount, "0%") & ")  Preparing tables", lngObjectCount)
+
+            dbs.TableDefs.Refresh
+            For Each td In dbs.TableDefs ' Tables
+                If (bolLocalTablesOnly = True And Len(td.Connect) = 0) _
+                  Or (bolLocalTablesOnly = False) Then
+
+                    If Left(td.Name, 4) <> "MSys" And Left(td.Name, 1) <> "~" Then
+                        Debug.Print td.Name, td.Attributes
+
+                        ' Update message in status bar.
+                        varReturn = SysCmd(acSysCmdSetStatus, "(" & Format((lngCount + 1) / lngObjectCount, "0%") _
+                            & ")  Exporting table: " + td.Name)
+
+                        DoCmd.TransferText acExportDelim, , td.Name, strSaveDir & "Table_" & td.Name & ".txt", True
+                        lngCount = lngCount + 1
+
+                    End If
+                End If
+            Next td
+
+            'Remove the Progress Meter
+            varReturn = SysCmd(acSysCmdRemoveMeter)
+
+            If MsgBox("Exported " & lngCount & " object(s)." _
+                & vbCrLf & vbCrLf & "Do you want to open the destination folder: " & strSaveDir & " ? " _
+                , vbSystemModal + vbYesNo + vbInformation, "Table Size") = vbYes Then
+
+                ' Open the output folder in Windows Explorer
+                Call Shell("explorer.exe " & strSaveDir, vbNormalFocus)
+            End If
+        End If
+    End If
+
+Exit_Sub:
+    Set td = Nothing
+    Set dbs = Nothing
+
+    Exit Sub
+
+ErrorHandler:
+
+    Debug.Print Err.Number, Err.Description
+    Select Case Err
+        Case "3011"
+            MsgBox "Table '" & td.Name & "' could not be found or has a broken link." _
+                & vbCrLf & vbCrLf & "Link: " & td.Connect _
+                & vbCrLf & vbCrLf & "Click OK to continue.", vbExclamation, "Error 3011"
+            Resume Next
+        Case "75"
+            ' This happens when you try to create a folder name that already exists.
+            ' For this Q&D function, ignore the error.
+            Resume Next
+        Case Else
+            MsgBox Err.Description
+            Resume Next
+    End Select
+
+    GoTo Exit_Sub
+
+End Sub

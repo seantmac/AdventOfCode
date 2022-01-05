@@ -1,0 +1,27 @@
+Form Section (R)  (C)  (MACH)  (TRIMSET)  (PATN)
+	Form Section (W)
+		WHEN ElRow (R)     (MACH)  (TRIMSET)  (W) EXISTS
+		
+		FORM SECTION
+			WHEN Qry (MACH)  (TRIMSET)  (PATN)  (W) EXISTS
+
+				‘put some numbers in some blocks in your MPS file
+		end loop
+	end loop
+end loop
+
+
+
+for R = 0 to arrR.uBound
+ for C = 0 to arrC.uBound
+  for MACH = 0 to arrMACH.uBound
+   for TRIMSET = 0 to arrTRIMSET.uBound
+     for PATN = 0 to arrPATN.uBound
+       for W = 0 to arrW.uBound
+		   'make a coef in matrix
+       End For
+     End For
+   End For
+  End For
+ End For
+End For
