@@ -1,0 +1,1 @@
+Accepted certificate will be saved in truststore C:/Users/SMACDER/.PyCharmEdu2017.3/system/tasks/cacerts with default password changeit
